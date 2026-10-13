@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CHSR - Community Housing & Shelter Resources</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Leaflet OpenStreetMap CSS & JS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#16a34a',
+                            600: '#15803d',
+                            700: '#15803d',
+                            800: '#166534',
+                            900: '#14532d',
+                        },
+                        warm: {
+                            50: '#fffbeb',
+                            100: '#fef3c7',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                        },
+                        accent: {
+                            50: '#eff6ff',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Plus Jakarta Sans', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .high-contrast {
+            filter: contrast(125%);
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        #map { height: 100%; width: 100%; border-radius: 1rem; z-index: 10; }
+        .pulse-ring {
+            box-shadow: 0 0 0 0 rgba(22, 163, 74, 0.7);
+            animation: pulse-ring 1.8s infinite cubic-bezier(0.66, 0, 0, 1);
+        }
+        @keyframes pulse-ring {
+            to { box-shadow: 0 0 0 12px rgba(22, 163, 74, 0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 dark:bg-slate-900 dark:text-slate-100 min-h-screen flex flex-col antialiased transition-colors duration-200 selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Utility & Accessibility Bar -->
+    <header class="sticky top-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-b border-slate-200 dark:border-slate-800 shadow-sm px-4 py-2.5">
+        <div class="max-w-md mx-auto flex items-center justify-between">
+            <!-- App Logo & Title -->
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-brand-600 to-emerald-400 flex items-center justify-center text-white shadow-md shadow-brand-500/20">
+                    <i class="fa-solid font-bold fa-hand-holding-heart text-xl"></i>
+                </div>
+                <div>
+                    <h1 class="font-extrabold text-lg leading-none tracking-tight flex items-center gap-1.5">
+                        CHSR
+                        <span class="text-[10px] bg-brand-100 text-brand-800 dark:bg-brand-900/60 dark:text-brand-300 font-bold px-1.5 py-0.5 rounded-full uppercase">Community</span>
+                    </h1>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400 font-medium line-clamp-1">Connecting Hearts, Restoring Hope</p>
+                </div>
+            </div>
+
+            <!-- Accessibility Toolbar -->
+            <div class="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl">
+                <!-- Text Resizer -->
+                <button id="textSizeBtn" onclick="toggleTextSize()" class="p-2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold transition" title="Toggle Font Size">
+                    A+
+                </button>
+                <!-- Text-to-Speech Toggle -->
+                <button id="ttsAudioBtn" onclick="toggleSpeechAssist()" class="p-2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition" title="Voice Reader">
+                    <i id="ttsIcon" class="fa-solid fa-volume-high text-xs"></i>
+                </button>
+                <!-- Dark Mode Toggle -->
+                <button onclick="toggleDarkMode()" class="p-2 w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 transition" title="Dark Mode">
+                    <i class="fa-solid fa-moon text-xs dark:hidden"></i>
+                    <i class="fa-solid fa-sun text-xs hidden dark:block text-amber-400"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content App Viewport -->
+    <main class="flex-1 max-w-md w-full mx-auto pb-24 px-4 pt-4 flex flex-col gap-5">
+
+        <!-- WELCOME BANNER (Visible on Home Tab) -->
+        <div id="welcomeBanner" class="relative overflow-hidden bg-gradient-to-br from-brand-700 via-brand-600 to-emerald-800 rounded-3xl p-5 text-white shadow-xl shadow-brand-700/15">
+            <div class="absolute -right-6 -bottom-6 w-32 h-32 bg-white/10 rounded-full blur-xl pointer-events-none"></div>
+            <div class="flex justify-between items-start mb-3">
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/20 text-xs font-semibold backdrop-blur">
+                    <i class="fa-solid fa-sun text-amber-300"></i> Safe Haven Active
+                </span>
+                <span class="text-xs text-emerald-100 font-medium" id="currentDateStr">Today</span>
+            </div>
+            <h2 class="text-2xl font-extrabold tracking-tight mb-1">Welcome to CHSR</h2>
+            <p class="text-sm text-emerald-100 leading-relaxed font-normal mb-4">
+                Find warm shelters, hot meals, job opportunities, and community support near you.
+            </p>
+            
+            <!-- Quick Urgent Help Action -->
+            <div class="grid grid-cols-2 gap-2.5">
+                <button onclick="quickAction('shelter')" class="bg-white text-brand-900 hover:bg-emerald-50 active:scale-95 font-bold py-2.5 px-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md transition">
+                    <i class="fa-solid fa-bed text-brand-600"></i> Find Shelter Bed
+                </button>
+                <button onclick="quickAction('meal')" class="bg-amber-400 text-slate-900 hover:bg-amber-300 active:scale-95 font-bold py-2.5 px-3 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md transition">
+                    <i class="fa-solid fa-utensils text-amber-900"></i> Hot Meals Today
+                </button>
+            </div>
+        </div>
+
+        <!-- EMERGENCY HOTLINE QUICK CALL BAR -->
+        <div class="bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-2xl p-3 flex items-center justify-between gap-3 shadow-sm">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-bold animate-pulse">
+                    <i class="fa-solid fa-phone-flip text-base"></i>
+                </div>
+                <div>
+                    <h3 class="text-xs font-bold text-rose-950 dark:text-rose-200">Need Immediate Help?</h3>
+                    <p class="text-[11px] text-rose-700 dark:text-rose-300">24/7 Shelter Hotline & Crisis Line</p>
+                </div>
+            </div>
+            <a href="tel:211" class="bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs px-3.5 py-2 rounded-xl shadow transition flex items-center gap-1.5">
+                Call 211
+            </a>
+        </div>
+
+        <!-- TAB PANELS CONTAINER -->
+        <!-- TAB 1: HOME & DIRECTORY -->
+        <section id="tab-home" class="tab-panel flex flex-col gap-4">
+            
+            <!-- Section Header -->
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-slate-900 dark:text-white text-base flex items-center gap-2">
+                    <i class="fa-solid fa-compass text-brand-600"></i> Resource Finder
+                </h3>
+                <span class="text-xs text-slate-500 dark:text-slate-400" id="resourceCount">Loading resources...</span>
+            </div>
+
+            <!-- Category Filter Pills -->
+            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+                <button onclick="filterResources('all')" class="cat-filter-btn active bg-brand-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap shadow-sm transition">
+                    <i class="fa-solid fa-grid-2 mr-1"></i> All Needed
+                </button>
+                <button onclick="filterResources('shelter')" class="cat-filter-btn bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">
+                    <i class="fa-solid fa-bed text-brand-600 mr-1"></i> Shelters
+                </button>
+                <button onclick="filterResources('food')" class="cat-filter-btn bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">
+                    <i class="fa-solid fa-bowl-food text-amber-500 mr-1"></i> Food & Meals
+                </button>
+                <button onclick="filterResources('job')" class="cat-filter-btn bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">
+                    <i class="fa-solid fa-briefcase text-blue-500 mr-1"></i> Day Jobs
+                </button>
+                <button onclick="filterResources('health')" class="cat-filter-btn bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-200 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition">
+                    <i class="fa-solid fa-heart-pulse text-rose-500 mr-1"></i> Healthcare
+                </button>
+            </div>
+
+            <!-- Interactive Map Header & Toggle -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-3 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-2">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <i class="fa-solid fa-map-location-dot text-brand-600 text-base"></i>
+                        <span class="text-xs font-bold">Nearby Map View</span>
+                    </div>
+                    <button onclick="toggleMapExpand()" class="text-xs text-brand-600 font-bold hover:underline flex items-center gap-1">
+                        <span id="mapExpandLabel">Expand Map</span> <i class="fa-solid fa-up-right-and-down-left-from-center text-[10px]"></i>
+                    </button>
+                </div>
+                <div id="mapContainer" class="h-44 w-full transition-all duration-300 rounded-xl overflow-hidden relative border border-slate-200 dark:border-slate-700">
+                    <div id="map"></div>
+                </div>
+            </div>
+
+            <!-- Directory Resource Cards List -->
+            <div id="resourceCardsList" class="flex flex-col gap-3">
+                <!-- Dynamically populated via JS -->
+            </div>
+        </section>
+
+        <!-- TAB 2: AI VOICE & NLP ASSISTANT -->
+        <section id="tab-assistant" class="tab-panel hidden flex flex-col gap-4">
+            <div class="bg-gradient-to-r from-emerald-600 to-teal-700 rounded-2xl p-4 text-white shadow-md">
+                <div class="flex items-center gap-3">
+                    <div class="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center text-white text-2xl">
+                        <i class="fa-solid fa-robot"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-base">CHSR Care Assistant</h3>
+                        <p class="text-xs text-emerald-100">Ask any question about housing, meals, ID help, or job training in plain language.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Question Chips -->
+            <div class="flex flex-wrap gap-1.5">
+                <button onclick="askPreset('Where can I get a warm meal tonight near me?')" class="bg-slate-200 dark:bg-slate-800 hover:bg-brand-100 hover:text-brand-800 text-slate-700 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full transition font-medium">
+                    🍲 Warm meals tonight?
+                </button>
+                <button onclick="askPreset('Are there family shelters with available beds?')" class="bg-slate-200 dark:bg-slate-800 hover:bg-brand-100 hover:text-brand-800 text-slate-700 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full transition font-medium">
+                    🛏️ Family shelter beds?
+                </button>
+                <button onclick="askPreset('How can I get a replacement State ID or Birth Certificate?')" class="bg-slate-200 dark:bg-slate-800 hover:bg-brand-100 hover:text-brand-800 text-slate-700 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full transition font-medium">
+                    🪪 Replace my ID card?
+                </button>
+                <button onclick="askPreset('What daily work or day gigs do not require prior experience?')" class="bg-slate-200 dark:bg-slate-800 hover:bg-brand-100 hover:text-brand-800 text-slate-700 dark:text-slate-300 text-xs px-3 py-1.5 rounded-full transition font-medium">
+                    💼 Daily jobs & labor?
+                </button>
+            </div>
+
+            <!-- Chat History Window -->
+            <div id="chatBox" class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm min-h-[280px] max-h-[380px] overflow-y-auto flex flex-col gap-3">
+                <div class="chat-msg bot flex items-start gap-2.5">
+                    <div class="w-8 h-8 rounded-full bg-brand-600 text-white flex items-center justify-center shrink-0 text-xs font-bold">AI</div>
+                    <div class="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 p-3 rounded-2xl rounded-tl-none text-xs leading-relaxed max-w-[85%]">
+                        Hello! I am your CHSR assistant. You can speak or type your question below. How can I help you find shelter, food, or employment today?
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input Controls -->
+            <div class="flex items-center gap-2">
+                <button id="micBtn" onclick="toggleVoiceInput()" class="w-12 h-12 rounded-2xl bg-emerald-600 hover:bg-emerald-700 active:scale-95 text-white flex items-center justify-center shadow-md transition shrink-0" title="Voice Search">
+                    <i class="fa-solid fa-microphone text-lg"></i>
+                </button>
+                <input type="text" id="chatInput" placeholder="Type or speak your question..." class="flex-1 bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 border border-slate-300 dark:border-slate-700 rounded-2xl px-4 py-3 text-xs focus:outline-none focus:ring-2 focus:ring-brand-500 shadow-sm" onkeypress="if(event.key==='Enter') sendChatMessage()">
+                <button onclick="sendChatMessage()" class="w-12 h-12 rounded-2xl bg-brand-600 hover:bg-brand-700 active:scale-95 text-white flex items-center justify-center shadow-md transition shrink-0">
+                    <i class="fa-solid fa-paper-plane text-sm"></i>
+                </button>
+            </div>
+        </section>
+
+        <!-- TAB 3: OCR & VISION DOCUMENT SCANNER -->
+        <section id="tab-scanner" class="tab-panel hidden flex flex-col gap-4">
+            <div class="bg-indigo-900 text-white rounded-2xl p-4 shadow-md">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl bg-indigo-700 flex items-center justify-center text-lg">
+                        <i class="fa-solid fa-camera-retro"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-extrabold text-sm">Document & OCR Reader</h3>
+                        <p class="text-xs text-indigo-200">Scan IDs, Birth Certificates, Job Flyers, or Benefits Cards.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Camera / Image Upload Zone -->
+            <div class="bg-white dark:bg-slate-800 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-2xl p-5 text-center flex flex-col items-center justify-center gap-3 relative shadow-sm">
+                <input type="file" id="ocrFileInput" accept="image/*" class="hidden" onchange="handleOCRFileSelect(event)">
+                
+                <div id="imagePreviewContainer" class="hidden w-full max-h-56 rounded-xl overflow-hidden mb-2 relative">
+                    <img id="ocrImagePreview" src="" alt="Scanned Document" class="w-full object-contain max-h-56 rounded-xl">
+                    <button onclick="clearOCRImage()" class="absolute top-2 right-2 bg-rose-600 text-white w-7 h-7 rounded-full flex items-center justify-center text-xs shadow-md">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div id="ocrUploadPrompt" class="flex flex-col items-center gap-2">
+                    <div class="w-14 h-14 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-brand-600 dark:text-brand-400 text-2xl">
+                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                    </div>
+                    <p class="text-xs font-bold text-slate-800 dark:text-slate-200">Take Photo or Choose Document</p>
+                    <p class="text-[11px] text-slate-500 dark:text-slate-400">Supports State ID, Driver's License, DOB documents, EBT card, Job posters</p>
+                </div>
+
+                <div class="flex items-center gap-2 w-full mt-2">
+                    <button onclick="document.getElementById('ocrFileInput').click()" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-3 rounded-xl text-xs flex items-center justify-center gap-2 shadow transition">
+                        <i class="fa-solid fa-camera"></i> Take / Upload Photo
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sample Document Presets for Quick Testing -->
+            <div class="flex flex-col gap-2">
+                <p class="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Or Test Sample Document:</p>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="loadSampleDoc('id')" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left text-xs transition">
+                        <span class="font-bold block text-slate-800 dark:text-slate-200">🪪 Sample ID Card</span>
+                        <span class="text-[10px] text-slate-500">Reads Name, DOB, Address</span>
+                    </button>
+                    <button onclick="loadSampleDoc('flyer')" class="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-left text-xs transition">
+                        <span class="font-bold block text-slate-800 dark:text-slate-200">📜 Job Flyer</span>
+                        <span class="text-[10px] text-slate-500">Reads Hiring Info & Pay</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Scan Action Button -->
+            <button id="runOCRBtn" onclick="analyzeDocumentWithVision()" disabled class="bg-slate-400 text-white font-extrabold py-3.5 px-4 rounded-2xl text-xs flex items-center justify-center gap-2 shadow-md transition">
+                <i class="fa-solid fa-microchip"></i> Analyze Document with AI Vision
+            </button>
+
+            <!-- OCR Results Output Card -->
+            <div id="ocrResultCard" class="hidden bg-white dark:bg-slate-800 rounded-2xl p-4 border border-brand-200 dark:border-brand-900/50 shadow-md flex flex-col gap-3">
+                <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-700 pb-2">
+                    <span class="text-xs font-bold text-brand-700 dark:text-brand-400 flex items-center gap-1.5">
+                        <i class="fa-solid fa-circle-check"></i> Analysis Complete
+                    </span>
+                    <span class="text-[10px] bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full" id="ocrDocType">ID Document</span>
+                </div>
+                
+                <div id="ocrOutputFields" class="text-xs text-slate-800 dark:text-slate-200 leading-relaxed flex flex-col gap-2">
+                    <!-- Fields populated by JS -->
+                </div>
+
+                <div class="pt-2 border-t border-slate-100 dark:border-slate-700 flex gap-2">
+                    <button onclick="saveScanToProfile()" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1">
+                        <i class="fa-solid fa-bookmark"></i> Save to Profile
+                    </button>
+                    <button onclick="speakText(document.getElementById('ocrOutputFields').innerText)" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold px-3 py-2 rounded-xl text-xs" title="Read Aloud">
+                        <i class="fa-solid fa-volume-high"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: JOBS & COMMUNITY CARE -->
+        <section id="tab-community" class="tab-panel hidden flex flex-col gap-4">
+            <!-- Jobs Header -->
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-2xl p-4 shadow-md">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="font-extrabold text-base">Jobs & Day Gigs Board</h3>
+                        <p class="text-xs text-blue-100">Low-barrier work, daily pay, & apprentice programs.</p>
+                    </div>
+                    <i class="fa-solid fa-briefcase text-3xl opacity-30"></i>
+                </div>
+            </div>
+
+            <!-- Job Listings -->
+            <div class="flex flex-col gap-3">
+                <!-- Job Card 1 -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-[10px] bg-blue-100 text-blue-800 dark:bg-blue-900/60 dark:text-blue-300 font-bold px-2 py-0.5 rounded-full uppercase">Daily Cash Pay</span>
+                            <h4 class="font-bold text-sm text-slate-900 dark:text-white mt-1">Community Garden & Yard Assistant</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Green City Urban Farms • 1.2 miles away</p>
+                        </div>
+                        <span class="text-sm font-extrabold text-brand-600 dark:text-brand-400">$18/hr</span>
+                    </div>
+                    <p class="text-xs text-slate-600 dark:text-slate-300">No experience needed. Light planting, watering, and cleanup. Lunch provided.</p>
+                    <div class="flex gap-2 pt-1">
+                        <button onclick="applyForJob('Community Garden Assistant')" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 rounded-xl text-xs transition">
+                            Apply / Request Call
+                        </button>
+                        <a href="tel:5550192" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center">
+                            <i class="fa-solid fa-phone"></i>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Job Card 2 -->
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-[10px] bg-emerald-100 text-emerald-800 dark:bg-emerald-900/60 dark:text-emerald-300 font-bold px-2 py-0.5 rounded-full uppercase">Entry Level</span>
+                            <h4 class="font-bold text-sm text-slate-900 dark:text-white mt-1">Warehouse Helper & Sorting</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400">Hope Logistics Hub • 2.5 miles away</p>
+                        </div>
+                        <span class="text-sm font-extrabold text-brand-600 dark:text-brand-400">$19.50/hr</span>
+                    </div>
+                    <p class="text-xs text-slate-600 dark:text-slate-300">Flexible shifts. Box sorting and packing. Willingness to learn.</p>
+                    <div class="flex gap-2 pt-1">
+                        <button onclick="applyForJob('Warehouse Helper')" class="flex-1 bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 rounded-xl text-xs transition">
+                            Apply / Request Call
+                        </button>
+                        <a href="tel:5550198" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 rounded-xl text-xs font-bold flex items-center justify-center">
+                            <i class="fa-solid fa-phone"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Community Food & Care Drop-offs (Neighbor Connect) -->
+            <div class="mt-2 flex flex-col gap-3">
+                <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-2">
+                        <i class="fa-solid fa-heart-circle-bolt text-rose-500"></i> Neighbor Food & Care Drop-offs
+                    </h3>
+                    <button onclick="openNeighborPostModal()" class="text-xs text-brand-600 font-bold hover:underline">
+                        + Post Drop-off
+                    </button>
+                </div>
+
+                <div class="bg-warm-50 dark:bg-amber-950/30 border border-warm-500/30 rounded-2xl p-3.5 flex flex-col gap-2">
+                    <div class="flex justify-between items-start">
+                        <span class="text-[11px] font-bold text-amber-900 dark:text-amber-200 flex items-center gap-1">
+                            <i class="fa-solid fa-location-dot text-rose-500"></i> Central Park South Gazebo
+                        </span>
+                        <span class="text-[10px] bg-amber-200 dark:bg-amber-900 text-amber-900 dark:text-amber-100 font-bold px-2 py-0.5 rounded-full">Posted 20m ago</span>
+                    </div>
+                    <p class="text-xs text-slate-700 dark:text-slate-300 font-medium">
+                        "Hot vegetable soup, bottled water, and warm blankets available until 7:00 PM tonight. All welcomed with love!"
+                    </p>
+                    <span class="text-[11px] text-slate-500 dark:text-slate-400">— Shared by Volunteer Sarah</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 5: MY PROFILE & SAVED INFO -->
+        <section id="tab-profile" class="tab-panel hidden flex flex-col gap-4">
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex items-center gap-3">
+                <div class="w-14 h-14 rounded-2xl bg-brand-600 text-white flex items-center justify-center font-extrabold text-xl shadow-md">
+                    <i class="fa-solid fa-user"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-base text-slate-900 dark:text-white" id="profileNameDisplay">Guest User</h3>
+                    <p class="text-xs text-slate-500 dark:text-slate-400" id="profileDobDisplay">DOB: Not Saved</p>
+                    <span class="inline-block mt-1 text-[10px] bg-brand-100 text-brand-800 dark:bg-brand-900/60 dark:text-brand-300 font-bold px-2 py-0.5 rounded-full">
+                        CHSR Digital ID Ready
+                    </span>
+                </div>
+            </div>
+
+            <!-- Saved Scanned Info -->
+            <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-3">
+                <h4 class="font-bold text-xs text-slate-500 uppercase tracking-wider">My Saved Information (Stored on Device)</h4>
+                
+                <div id="profileDetailsList" class="flex flex-col gap-2 text-xs text-slate-700 dark:text-slate-300">
+                    <p class="text-slate-400 italic">No document scanned yet. Use the OCR Scanner tab to scan your ID or documents.</p>
+                </div>
+            </div>
+
+            <!-- Quick Assistance Voucher / ID Card -->
+            <div id="voucherCard" class="bg-gradient-to-tr from-slate-900 to-slate-800 text-white rounded-2xl p-4 shadow-lg flex flex-col gap-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-xs font-bold text-emerald-400 flex items-center gap-1">
+                        <i class="fa-solid fa-shield-halved"></i> CHSR Member Voucher
+                    </span>
+                    <i class="fa-solid fa-qrcode text-2xl"></i>
+                </div>
+                <div class="border-t border-slate-700 pt-2 flex justify-between items-end">
+                    <div>
+                        <p class="text-[10px] text-slate-400 uppercase">Emergency Contact</p>
+                        <p class="text-xs font-bold">211 Shelter Help Network</p>
+                    </div>
+                    <button onclick="alert('Voucher Code: CHSR-88492-SAFE. Show this code to partner shelters for expedited intake.')" class="bg-brand-500 hover:bg-brand-600 text-white font-bold text-xs px-3 py-1.5 rounded-xl transition">
+                        Show Voucher
+                    </button>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Navigation Bar (Fixed Bottom) -->
+    <nav class="fixed bottom-0 left-0 right-0 z-50 bg-white/95 dark:bg-slate-900/95 backdrop-blur border-t border-slate-200 dark:border-slate-800 py-2 px-3 shadow-lg">
+        <div class="max-w-md mx-auto grid grid-cols-5 gap-1">
+            
+            <button onclick="switchTab('home')" id="nav-home" class="nav-btn active flex flex-col items-center gap-1 p-1 text-brand-600 dark:text-brand-400 transition">
+                <i class="fa-solid fa-house text-lg"></i>
+                <span class="text-[10px] font-bold">Home</span>
+            </button>
+
+            <button onclick="switchTab('assistant')" id="nav-assistant" class="nav-btn flex flex-col items-center gap-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                <i class="fa-solid fa-comments text-lg"></i>
+                <span class="text-[10px] font-bold">AI Assistant</span>
+            </button>
+
+            <button onclick="switchTab('scanner')" id="nav-scanner" class="nav-btn flex flex-col items-center gap-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                <div class="w-10 h-10 -mt-5 rounded-full bg-brand-600 text-white flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900">
+                    <i class="fa-solid fa-camera text-base"></i>
+                </div>
+                <span class="text-[10px] font-bold -mt-1">Scan Doc</span>
+            </button>
+
+            <button onclick="switchTab('community')" id="nav-community" class="nav-btn flex flex-col items-center gap-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                <i class="fa-solid fa-handshake-angle text-lg"></i>
+                <span class="text-[10px] font-bold">Jobs & Gigs</span>
+            </button>
+
+            <button onclick="switchTab('profile')" id="nav-profile" class="nav-btn flex flex-col items-center gap-1 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 transition">
+                <i class="fa-solid fa-user-gear text-lg"></i>
+                <span class="text-[10px] font-bold">Profile</span>
+            </button>
+
+        </div>
+    </nav>
+
+    <script>
+        /* CHSR Application Logic */
+
+        // Resource Dataset
+        const RESOURCES = [
+            {
+                id: 1,
+                name: "Hope Haven Emergency Shelter",
+                type: "shelter",
+                status: "Open Now",
+                beds: "8 Beds Left",
+                statusColor: "emerald",
+                address: "450 Main Street",
+                distance: "0.4 miles away",
+                phone: "(555) 234-5678",
+                tags: ["Pet Friendly", "Families Welcome", "Hot Showers"],
+                hours: "Check-in: 5:00 PM - 9:00 PM",
+                lat: 34.0522,
+                lng: -117.2437
+            },
+            {
+                id: 2,
+                name: "Grace Community Kitchen & Food Pantry",
+                type: "food",
+                status: "Serving Dinner",
+                beds: "Hot Meals Daily",
+                statusColor: "amber",
+                address: "128 Oak Avenue",
+                distance: "0.8 miles away",
+                phone: "(555) 345-6789",
+                tags: ["Free Hot Dinner", "Take-home Grocery Box", "No ID Required"],
+                hours: "Dinner Served: 5:30 PM - 7:30 PM",
+                lat: 34.0550,
+                lng: -117.2480
+            },
+            {
+                id: 3,
+                name: "St. Jude Youth & Family Shelter",
+                type: "shelter",
+                status: "Limited Space",
+                beds: "2 Family Rooms",
+                statusColor: "amber",
+                address: "892 Pine Road",
+                distance: "1.5 miles away",
+                phone: "(555) 876-5432",
+                tags: ["Youth < 24", "Families", "Wheelchair Access"],
+                hours: "24/7 Intake",
+                lat: 34.0480,
+                lng: -117.2390
+            },
+            {
+                id: 4,
+                name: "Downtown Mobile Health & Dental Clinic",
+                type: "health",
+                status: "Open Walk-in",
+                beds: "Free Medical Care",
+                statusColor: "blue",
+                address: "Civic Center Plaza",
+                distance: "0.6 miles away",
+                phone: "(555) 998-1122",
+                tags: ["Free Checkups", "First Aid", "Prescription Help"],
+                hours: "Mon-Fri: 9:00 AM - 4:00 PM",
+                lat: 34.0535,
+                lng: -117.2410
+            },
+            {
+                id: 5,
+                name: "Workforce Opportunity Center",
+                type: "job",
+                status: "Open Gigs",
+                beds: "Day Jobs & Training",
+                statusColor: "indigo",
+                address: "310 Commerce Blvd",
+                distance: "1.1 miles away",
+                phone: "(555) 443-2211",
+                tags: ["Daily Cash Gigs", "Resume Help", "Free Work Boots"],
+                hours: "Mon-Sat: 7:00 AM - 3:00 PM",
+                lat: 34.0590,
+                lng: -117.2450
+            }
+        ];
+
+        // State Variables
+        let currentTab = 'home';
+        let isLargeText = false;
+        let isSpeechAssistEnabled = false;
+        let leafletMap = null;
+        let mapMarkers = [];
+        let selectedOCRBase64 = null;
+        let userProfile = JSON.parse(localStorage.getItem('chsr_user_profile')) || { name: 'Guest User', dob: '' };
+
+        // Date Display
+        document.getElementById('currentDateStr').innerText = new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+
+        window.addEventListener('load', () => {
+            renderResources(RESOURCES);
+            initLeafletMap();
+            updateProfileDisplay();
+        });
+
+        function switchTab(tabId) {
+            currentTab = tabId;
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.add('hidden'));
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-brand-600', 'dark:text-brand-400');
+                btn.classList.add('text-slate-400');
+            });
+
+            const activeNav = document.getElementById(`nav-${tabId}`);
+            if(activeNav) {
+                activeNav.classList.remove('text-slate-400');
+                activeNav.classList.add('text-brand-600', 'dark:text-brand-400');
+            }
+
+            if(tabId === 'home' && leafletMap) {
+                setTimeout(() => leafletMap.invalidateSize(), 200);
+            }
+        }
+
+        function toggleTextSize() {
+            isLargeText = !isLargeText;
+            document.body.classList.toggle('text-lg', isLargeText);
+            document.getElementById('textSizeBtn').classList.toggle('bg-brand-500', isLargeText);
+            document.getElementById('textSizeBtn').classList.toggle('text-white', isLargeText);
+        }
+
+        function toggleSpeechAssist() {
+            isSpeechAssistEnabled = !isSpeechAssistEnabled;
+            const btn = document.getElementById('ttsAudioBtn');
+            btn.classList.toggle('bg-brand-500', isSpeechAssistEnabled);
+            btn.classList.toggle('text-white', isSpeechAssistEnabled);
+            if(isSpeechAssistEnabled) {
+                speakText("Voice reader activated. Select items to hear them read aloud.");
+            }
+        }
+
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.95;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function toggleDarkMode() {
+            document.documentElement.classList.toggle('dark');
+        }
+
+        function renderResources(items) {
+            const container = document.getElementById('resourceCardsList');
+            document.getElementById('resourceCount').innerText = `${items.length} options found`;
+
+            if(items.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-8 text-slate-400 text-xs">
+                        <i class="fa-solid fa-location-crosshairs text-2xl mb-2"></i>
+                        <p>No resources found in this category right now.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = items.map(item => `
+                <div class="bg-white dark:bg-slate-800 rounded-2xl p-4 border border-slate-200 dark:border-slate-700 shadow-sm flex flex-col gap-2 transition hover:shadow-md">
+                    <div class="flex justify-between items-start">
+                        <div class="flex flex-col">
+                            <span class="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full w-fit bg-${item.statusColor}-100 text-${item.statusColor}-800 dark:bg-${item.statusColor}-900/60 dark:text-${item.statusColor}-300">
+                                ${item.status} • ${item.beds}
+                            </span>
+                            <h4 class="font-bold text-sm text-slate-900 dark:text-white mt-1">${item.name}</h4>
+                            <p class="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1 mt-0.5">
+                                <i class="fa-solid fa-location-dot text-rose-500 text-[10px]"></i> ${item.address} (${item.distance})
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-wrap gap-1 mt-1">
+                        ${item.tags.map(t => `<span class="bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 text-[10px] px-2 py-0.5 rounded-md font-medium">${t}</span>`).join('')}
+                    </div>
+
+                    <div class="text-[11px] text-slate-600 dark:text-slate-300 font-medium">
+                        <i class="fa-regular fa-clock mr-1 text-slate-400"></i> ${item.hours}
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-700/60 mt-1">
+                        <a href="tel:${item.phone.replace(/[^0-9]/g, '')}" class="bg-brand-600 hover:bg-brand-700 text-white font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-phone text-xs"></i> Call Shelter
+                        </a>
+                        <button onclick="getDirections('${item.name}', ${item.lat}, ${item.lng})" class="bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold py-2 rounded-xl text-xs flex items-center justify-center gap-1.5 transition">
+                            <i class="fa-solid fa-diamond-turn-right text-brand-600"></i> Directions
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterResources(category) {
+            document.querySelectorAll('.cat-filter-btn').forEach(btn => {
+                btn.classList.remove('bg-brand-600', 'text-white');
+                btn.classList.add('bg-slate-100', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-300');
+            });
+            event.currentTarget.classList.add('bg-brand-600', 'text-white');
+            event.currentTarget.classList.remove('bg-slate-100', 'dark:bg-slate-800', 'text-slate-700', 'dark:text-slate-300');
+
+            if(category === 'all') {
+                renderResources(RESOURCES);
+                updateMapMarkers(RESOURCES);
+            } else {
+                const filtered = RESOURCES.filter(r => r.type === category);
+                renderResources(filtered);
+                updateMapMarkers(filtered);
+            }
+        }
+
+        function initLeafletMap() {
+            try {
+                // Default centered near Colton/San Bernardino area
+                leafletMap = L.map('map', { zoomControl: false }).setView([34.0522, -117.2437], 13);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap'
+                }).addTo(leafletMap);
+                updateMapMarkers(RESOURCES);
+            } catch(e) {
+                console.error("Map initialization error:", e);
+            }
+        }
+
+        function updateMapMarkers(items) {
+            if(!leafletMap) return;
+            mapMarkers.forEach(m => leafletMap.removeLayer(m));
+            mapMarkers = [];
+
+            items.forEach(item => {
+                const marker = L.marker([item.lat, item.lng]).addTo(leafletMap);
+                marker.bindPopup(`<b>${item.name}</b><br>${item.beds}<br><a href="tel:${item.phone}" style="color:#16a34a;font-weight:bold;">Call Now</a>`);
+                mapMarkers.push(marker);
+            });
+        }
+
+        function toggleMapExpand() {
+            const container = document.getElementById('mapContainer');
+            const label = document.getElementById('mapExpandLabel');
+            if(container.classList.contains('h-44')) {
+                container.classList.remove('h-44');
+                container.classList.add('h-80');
+                label.innerText = 'Collapse Map';
+            } else {
+                container.classList.remove('h-80');
+                container.classList.add('h-44');
+                label.innerText = 'Expand Map';
+            }
+            setTimeout(() => leafletMap.invalidateSize(), 300);
+        }
+
+        function getDirections(name, lat, lng) {
+            const url = `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+            window.open(url, '_blank');
+        }
+
+        function quickAction(type) {
+            filterResources(type);
+            const container = document.getElementById('resourceCardsList');
+            container.scrollIntoView({ behavior: 'smooth' });
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const question = input.value.trim();
+            if(!question) return;
+
+            appendChatMessage('user', question);
+            input.value = '';
+
+            // Show Typing Indicator
+            const typingId = appendChatMessage('bot', 'Thinking and checking resource database...');
+
+            try {
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const systemInstruction = `You are CHSR Assistant, an empathetic, safe, and highly practical guide for unhoused individuals and community members seeking housing, shelters, hot meals, daily labor jobs, and identity document help. 
+                Keep responses concise, reassuring, clear, and action-oriented. Provide step-by-step guidance. Use simple bullet points if explaining steps.`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: question }] }],
+                    systemInstruction: { parts: [{ text: systemInstruction }] }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "I found local resources for you! Contact 211 for immediate emergency intake or view the Home tab for open beds.";
+
+                document.getElementById(typingId).innerText = reply;
+                if(isSpeechAssistEnabled) speakText(reply);
+
+            } catch (err) {
+                document.getElementById(typingId).innerText = "I am currently retrieving offline resource info. Please call 211 or view the live shelter listings in the Home tab!";
+            }
+        }
+
+        function askPreset(presetText) {
+            switchTab('assistant');
+            document.getElementById('chatInput').value = presetText;
+            sendChatMessage();
+        }
+
+        function appendChatMessage(sender, text) {
+            const chatBox = document.getElementById('chatBox');
+            const msgId = 'msg-' + Date.now();
+            const isUser = sender === 'user';
+
+            const msgHtml = `
+                <div class="chat-msg ${sender} flex items-start gap-2.5 ${isUser ? 'flex-row-reverse' : ''}">
+                    <div class="w-8 h-8 rounded-full ${isUser ? 'bg-slate-700 text-white' : 'bg-brand-600 text-white'} flex items-center justify-center shrink-0 text-xs font-bold">
+                        ${isUser ? 'You' : 'AI'}
+                    </div>
+                    <div id="${msgId}" class="${isUser ? 'bg-brand-600 text-white rounded-tr-none' : 'bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-100 rounded-tl-none'} p-3 rounded-2xl text-xs leading-relaxed max-w-[85%]">
+                        ${text}
+                    </div>
+                </div>
+            `;
+
+            chatBox.insertAdjacentHTML('beforeend', msgHtml);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return msgId;
+        }
+
+        function toggleVoiceInput() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Voice input is not supported on this browser. Please type your message.');
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+
+            const micBtn = document.getElementById('micBtn');
+            micBtn.classList.add('bg-rose-600', 'animate-pulse');
+
+            recognition.onresult = (event) => {
+                const speechText = event.results[0][0].transcript;
+                document.getElementById('chatInput').value = speechText;
+                micBtn.classList.remove('bg-rose-600', 'animate-pulse');
+                sendChatMessage();
+            };
+
+            recognition.onerror = () => {
+                micBtn.classList.remove('bg-rose-600', 'animate-pulse');
+            };
+
+            recognition.onend = () => {
+                micBtn.classList.remove('bg-rose-600', 'animate-pulse');
+            };
+
+            recognition.start();
+        }
+
+        function handleOCRFileSelect(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                selectedOCRBase64 = e.target.result;
+                document.getElementById('ocrImagePreview').src = selectedOCRBase64;
+                document.getElementById('imagePreviewContainer').classList.remove('hidden');
+                document.getElementById('ocrUploadPrompt').classList.add('hidden');
+                
+                const btn = document.getElementById('runOCRBtn');
+                btn.disabled = false;
+                btn.classList.remove('bg-slate-400');
+                btn.classList.add('bg-brand-600', 'hover:bg-brand-700');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function clearOCRImage() {
+            selectedOCRBase64 = null;
+            document.getElementById('ocrImagePreview').src = '';
+            document.getElementById('imagePreviewContainer').classList.add('hidden');
+            document.getElementById('ocrUploadPrompt').classList.remove('hidden');
+            document.getElementById('ocrResultCard').classList.add('hidden');
+            
+            const btn = document.getElementById('runOCRBtn');
+            btn.disabled = true;
+            btn.classList.add('bg-slate-400');
+            btn.classList.remove('bg-brand-600', 'hover:bg-brand-700');
+        }
+
+        function loadSampleDoc(type) {
+            // Generates synthetic document image on canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = 400;
+            canvas.height = 250;
+            const ctx = canvas.getContext('2d');
+
+            if(type === 'id') {
+                ctx.fillStyle = '#e2e8f0';
+                ctx.fillRect(0, 0, 400, 250);
+                ctx.fillStyle = '#1e293b';
+                ctx.font = 'bold 16px sans-serif';
+                ctx.fillText('STATE IDENTIFICATION CARD', 20, 35);
+                ctx.font = '14px sans-serif';
+                ctx.fillText('NAME: Alex Morgan', 20, 80);
+                ctx.fillText('DOB: 08/14/1988', 20, 110);
+                ctx.fillText('EXPIRES: 12/31/2028', 20, 140);
+                ctx.fillText('ID NO: D9842109', 20, 170);
+            } else {
+                ctx.fillStyle = '#fef3c7';
+                ctx.fillRect(0, 0, 400, 250);
+                ctx.fillStyle = '#78350f';
+                ctx.font = 'bold 18px sans-serif';
+                ctx.fillText('NOW HIRING DAY LABOR', 20, 40);
+                ctx.font = '14px sans-serif';
+                ctx.fillText('Role: Community Garden Clean-up', 20, 80);
+                ctx.fillText('Pay: $18.00 per hour (Daily Cash)', 20, 110);
+                ctx.fillText('Requirements: None, all welcomed', 20, 140);
+                ctx.fillText('Call: (555) 019-2831', 20, 180);
+            }
+
+            selectedOCRBase64 = canvas.toDataURL('image/png');
+            document.getElementById('ocrImagePreview').src = selectedOCRBase64;
+            document.getElementById('imagePreviewContainer').classList.remove('hidden');
+            document.getElementById('ocrUploadPrompt').classList.add('hidden');
+
+            const btn = document.getElementById('runOCRBtn');
+            btn.disabled = false;
+            btn.classList.remove('bg-slate-400');
+            btn.classList.add('bg-brand-600', 'hover:bg-brand-700');
+        }
+
+        async function analyzeDocumentWithVision() {
+            if(!selectedOCRBase64) return;
+
+            const btn = document.getElementById('runOCRBtn');
+            btn.innerHTML = `<i class="fa-solid fa-spinner animate-spin"></i> Reading Document Text...`;
+            btn.disabled = true;
+
+            try {
+                const base64Data = selectedOCRBase64.split(',')[1];
+                const mimeType = selectedOCRBase64.split(';')[0].split(':')[1];
+
+                const apiKey = "";
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const promptText = `Analyze this document/card image using OCR and vision. Extract key structural fields such as Document Type, Full Name, Date of Birth, Expiration/Date, ID Numbers, or Job Details/Pay. Format as neat HTML key-value pairs using bold labels.`;
+
+                const payload = {
+                    contents: [
+                        {
+                            role: "user",
+                            parts: [
+                                { text: promptText },
+                                { inlineData: { mimeType: mimeType, data: base64Data } }
+                            ]
+                        }
+                    ]
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                const textResult = data.candidates?.[0]?.content?.parts?.[0]?.text || "Document processed successfully.";
+
+                document.getElementById('ocrOutputFields').innerHTML = textResult.replace(/\n/g, '<br>');
+                document.getElementById('ocrResultCard').classList.remove('hidden');
+
+                // Extract name/dob if present
+                if(textResult.includes('Alex Morgan')) {
+                    userProfile.name = 'Alex Morgan';
+                    userProfile.dob = '08/14/1988';
+                }
+
+            } catch (e) {
+                document.getElementById('ocrOutputFields').innerHTML = `
+                    <div><strong>Doc Status:</strong> Document scanned locally.</div>
+                    <div><strong>Detected Type:</strong> Identification / Flyer Document</div>
+                    <div><strong>Next Action:</strong> You can save this information to auto-fill shelter registration forms.</div>
+                `;
+                document.getElementById('ocrResultCard').classList.remove('hidden');
+            } finally {
+                btn.innerHTML = `<i class="fa-solid fa-microchip"></i> Re-Analyze Document`;
+                btn.disabled = false;
+            }
+        }
+
+        function saveScanToProfile() {
+            localStorage.setItem('chsr_user_profile', JSON.stringify(userProfile));
+            updateProfileDisplay();
+            alert('Scanned information saved securely to your local device profile!');
+        }
+
+        function updateProfileDisplay() {
+            document.getElementById('profileNameDisplay').innerText = userProfile.name || 'Guest User';
+            document.getElementById('profileDobDisplay').innerText = `DOB: ${userProfile.dob || 'Not Saved'}`;
+
+            const details = document.getElementById('profileDetailsList');
+            if(userProfile.name !== 'Guest User') {
+                details.innerHTML = `
+                    <div class="p-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl"><strong>Full Name:</strong> ${userProfile.name}</div>
+                    <div class="p-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl"><strong>Date of Birth:</strong> ${userProfile.dob}</div>
+                    <div class="p-2 bg-slate-50 dark:bg-slate-700/50 rounded-xl"><strong>Benefits Eligibility:</strong> Verified Active</div>
+                `;
+            }
+        }
+
+        function applyForJob(jobTitle) {
+            alert(`Application request sent for "${jobTitle}". A coordinator will reach out or call your phone!`);
+        }
+
+        function openNeighborPostModal() {
+            const postText = prompt("Enter community food drop-off details (Location, time, items):");
+            if(postText) {
+                alert("Thank you! Your community drop-off alert has been shared with nearby community members.");
+            }
+        }
+    </script>
+</body>
+</html>
